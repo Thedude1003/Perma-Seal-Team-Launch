@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permaseal Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07111E;--surf:#0D1B2A;--surf2:#122236;
+  --border:#1C3050;--border2:#253F60;
+  --text:#E8F0FF;--text2:#7A9ABB;--text3:#3D5470;
+  --gold:#F5B500;--gold-glow:rgba(245,181,0,.22);
+  --silver:#A0B4CC;--bronze:#C07840;
+  --neg:#FF6060;--pos:#00CC96;
+  --s-acc:#4AA0F0;--p-acc:#A060F0;
+  --r:10px;--r-sm:6px;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --cond:'Barlow Condensed',system-ui,sans-serif;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px}
+.wrap{max-width:900px;margin:0 auto;padding:0 18px 60px}
+
+/* ── header ─── */
+.hdr{background:linear-gradient(180deg,#0A1828,#060F1C);border-bottom:1px solid var(--border);margin-bottom:24px}
+.hdr-in{max-width:900px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hdr-brand{display:flex;align-items:center;gap:12px}
+.hdr-icon{width:42px;height:42px;background:var(--surf2);border:1px solid var(--border2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;transition:all .2s}
+.hdr-t{font-family:var(--cond);font-size:23px;font-weight:800;letter-spacing:.04em;line-height:1}
+.hdr-s{font-size:12px;color:var(--text3);margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.pbadge{font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;letter-spacing:.06em;font-family:var(--cond);transition:all .2s}
+.ptag{font-size:11px;color:var(--text3);margin-top:4px;text-align:right}
+
+/* ── mode toggle ─── */
+.mode-toggle{display:flex;background:var(--surf2);border:1px solid var(--border2);border-radius:20px;padding:2px;gap:2px}
+.mt-btn{padding:5px 14px;border:none;background:none;border-radius:18px;font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text3);cursor:pointer;transition:all .18s;white-space:nowrap}
+.mt-btn.active-sales{background:#0D3060;color:var(--s-acc)}
+.mt-btn.active-pmt{background:#1A0840;color:var(--p-acc)}
+
+/* ── corner drop widgets — stacked vertically ─── */
+.cdrop{
+  position:fixed;left:14px;z-index:999;
+  width:34px;height:34px;
+  border-radius:8px;
+  background:rgba(9,20,35,.9);
+  border:1px solid var(--border2);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  cursor:pointer;
+  transition:width .22s ease,border-color .15s,background .15s,box-shadow .15s;
+  overflow:hidden;display:flex;align-items:center;white-space:nowrap;
+}
+#cdrop1{ top:14px }
+#cdrop2{ top:56px }   /* 14 + 34 + 8 gap */
+
+#cdrop1:hover,#cdrop1.drag{ width:178px;border-color:var(--s-acc);background:rgba(10,26,58,.95);box-shadow:0 0 0 2px rgba(74,160,240,.14) }
+#cdrop2:hover,#cdrop2.drag{ width:178px;border-color:var(--p-acc);background:rgba(22,10,56,.95);box-shadow:0 0 0 2px rgba(160,96,240,.14) }
+#cdrop1.drag,#cdrop2.drag{ box-shadow:0 0 0 3px rgba(0,204,150,.18) }
+#cdrop1.loaded{ border-color:var(--pos) }
+#cdrop2.loaded{ border-color:var(--p-acc) }
+#cdrop1.err,#cdrop2.err{ border-color:var(--neg) }
+
+.cd-icon{ width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px }
+.cd-label{ font-size:11px;font-weight:600;color:var(--text2);padding-right:10px;letter-spacing:.01em }
+.cd-dot{ position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;display:none }
+#cdrop1.loaded .cd-dot{ display:block;background:var(--pos) }
+#cdrop2.loaded .cd-dot{ display:block;background:var(--p-acc) }
+#cdrop1.err .cd-dot,#cdrop2.err .cd-dot{ display:block;background:var(--neg) }
+
+/* ── toast ─── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:998;background:var(--surf2);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 18px;font-size:13px;color:var(--text2);opacity:0;pointer-events:none;transition:opacity .25s;max-width:440px;text-align:center;backdrop-filter:blur(8px)}
+#toast.show{opacity:1}#toast.ok{border-color:var(--pos);color:#5ADDB8}#toast.err{border-color:var(--neg);color:#FF9090}#toast.info{border-color:var(--p-acc);color:#C090FF}
+
+/* ── kpi ─── */
+.kpi-bar{display:flex;justify-content:center;gap:8px;margin-bottom:8px}
+/* ── team filter bar ─── */
+.team-bar{display:flex;justify-content:center;gap:6px;margin-bottom:24px}
+.tf-divider{width:1px;background:var(--border2);margin:0 4px}
+.tb{padding:6px 16px;border:1px solid var(--border);background:transparent;color:var(--text3);font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.07em;border-radius:var(--r-sm);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.tb:hover{color:var(--text2);border-color:var(--border2);background:var(--surf2)}
+.tb.tf-1-on{background:#0D3060;border-color:#4AA0F0;color:#4AA0F0}
+.tb.tf-2-on{background:#3A2008;border-color:#F5A030;color:#F5A030}
+.tb.tf-3-on{background:#003828;border-color:#00CC96;color:#00CC96}
+.kb{padding:9px 22px;border:1px solid var(--border2);background:var(--surf);color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:.05em;border-radius:var(--r-sm);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.kb:hover{color:var(--text);background:var(--surf2)}
+.kb.a-ns-s{background:#0D3060;border-color:#4AA0F0;color:#4AA0F0}
+.kb.a-cr-s{background:#3A2008;border-color:#F5A030;color:#F5A030}
+.kb.a-al-s{background:#003828;border-color:#00CC96;color:#00CC96}
+.kb.a-ns-p{background:#1A0840;border-color:#A060F0;color:#A060F0}
+.kb.a-cr-p{background:#2A0830;border-color:#F060A0;color:#F060A0}
+.kb.a-al-p{background:#001830;border-color:#40A0E0;color:#40A0E0}
+
+/* ── section ─── */
+.sec{font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--text3);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── podium ─── */
+.pod-wrap{display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:34px;min-height:240px}
+.pod-col{display:flex;flex-direction:column;align-items:center;flex:1;max-width:210px;opacity:0;animation:up .4s ease forwards}
+.pod-col:nth-child(1){animation-delay:.12s}.pod-col:nth-child(2){animation-delay:.04s}.pod-col:nth-child(3){animation-delay:.2s}
+.pod-info{text-align:center;padding:0 8px 10px;width:100%}
+.pod-crown{font-size:24px;margin-bottom:4px;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.pod-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-size:17px;font-weight:700;margin:0 auto 8px;border:2px solid transparent}
+.p1 .pod-av{width:62px;height:62px;font-size:20px}
+.pod-nm{font-family:var(--cond);font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.pod-role{font-size:10px;margin-top:3px;letter-spacing:.05em;text-transform:uppercase}
+.pod-val{font-family:var(--cond);font-size:20px;font-weight:800;margin-top:5px;line-height:1}
+.p1 .pod-val{font-size:26px}
+.pod-blk{width:100%;display:flex;align-items:center;justify-content:center;border-radius:6px 6px 0 0}
+.pod-blk span{font-family:var(--cond);font-size:30px;font-weight:800;opacity:.6}
+.p1 .pod-blk{background:linear-gradient(180deg,#2E2200,#181100);border:1px solid #4A3800;border-bottom:none}
+.p1 .pod-blk span,.p1 .pod-val{color:var(--gold)}
+.p2 .pod-blk{background:linear-gradient(180deg,#1A2330,#101820);border:1px solid #283848;border-bottom:none}
+.p2 .pod-blk span,.p2 .pod-val{color:var(--silver)}
+.p3 .pod-blk{background:linear-gradient(180deg,#281A0C,#180F06);border:1px solid #382818;border-bottom:none}
+.p3 .pod-blk span,.p3 .pod-val{color:var(--bronze)}
+.pod-base{height:5px;background:var(--border);border-radius:0 0 4px 4px;width:calc(100% + 2px);margin:0 -1px}
+
+/* ── rep rows ─── */
+.stat-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--surf2);border:1px solid var(--border2);border-radius:var(--r);margin-bottom:8px;gap:12px}
+.stat-lhs{display:flex;align-items:center;gap:10px}
+.stat-icon{font-size:18px;flex-shrink:0}
+.stat-lbl{font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:.05em;color:var(--text2);text-transform:uppercase}
+.stat-note{font-size:11px;color:var(--text3);margin-top:2px}
+.stat-val{font-family:var(--cond);font-size:26px;font-weight:800;line-height:1;white-space:nowrap}
+.stat-val.ns-col{color:#4AA0F0}
+.stat-val.cr-col{color:#F5A030}
+.stat-val.al-col{color:#00CC96}
+.tl-hdr-row{display:grid;grid-template-columns:46px 1fr 100px 140px;align-items:center;gap:12px;padding:11px 16px 11px 20px;background:rgba(245,181,0,.05);border:1px solid rgba(245,181,0,.18);border-radius:var(--r);margin-bottom:6px;position:relative}
+.tl-hdr-label{position:absolute;top:-1px;left:12px;font-family:var(--cond);font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--gold);background:var(--bg);padding:0 5px;text-transform:uppercase}
+.tl-hdr-sep{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin:12px 0 8px;display:flex;align-items:center;gap:8px}
+.tl-hdr-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.rep-row{display:grid;grid-template-columns:48px 46px 1fr 100px 140px;align-items:center;gap:12px;padding:11px 16px;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;opacity:0;animation:up .25s ease forwards;transition:border-color .15s}
+.rep-row:hover{border-color:var(--border2)}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rk{font-family:var(--cond);font-size:30px;font-weight:800;text-align:center;line-height:1}
+.rk.g{color:var(--gold);text-shadow:0 0 16px var(--gold-glow)}.rk.s{color:var(--silver)}.rk.b{color:var(--bronze)}.rk.n{color:var(--text3);font-size:22px}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-size:13px;font-weight:700;border:1.5px solid transparent;flex-shrink:0}
+.rep-nm{font-size:14px;font-weight:600;color:var(--text);line-height:1.2}
+.rep-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.tl-badge{display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;letter-spacing:.05em;vertical-align:middle;font-family:var(--cond);background:rgba(245,181,0,.12);color:var(--gold);border:1px solid rgba(245,181,0,.25)}
+.kv{text-align:right}
+.kvn{font-family:var(--cond);font-size:20px;font-weight:700;line-height:1}
+.kvl{font-size:10px;color:var(--text3);margin-top:2px}
+.btrk{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.bfil{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.bpct{font-size:10px;color:var(--text3);margin-top:3px;text-align:right}
+.rep-row.top1{animation:up .25s ease .04s forwards,rglow 3s ease-in-out 1.5s infinite}
+@keyframes rglow{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 16px 2px var(--gold-glow)}}
+.vnull{color:var(--text3)}.vneg{color:var(--neg)}
+
+/* ── TL header card (shown when team filter active) ─── */
+.tl-hdr-card{display:grid;grid-template-columns:48px 46px 1fr 100px 140px;align-items:center;gap:12px;padding:11px 16px;border-radius:var(--r);margin-bottom:14px;border:1px solid var(--border2);position:relative;overflow:hidden}
+.tl-hdr-card::before{content:'';position:absolute;inset:0;opacity:.06;pointer-events:none}
+.tl-hdr-label{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.1em;padding:3px 9px;border-radius:4px;text-transform:uppercase;text-align:center;line-height:1.3}
+.tl-excl{font-size:10px;color:var(--text3);text-align:right;font-style:italic;margin-top:2px}
+
+/* ── waiting ─── */
+.waiting{padding:80px 24px;text-align:center}
+.wi{font-size:44px;margin-bottom:14px;opacity:.35;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:.55}}
+.wt{font-size:17px;font-weight:600;color:var(--text3);margin-bottom:6px}
+.ws{font-size:13px;color:var(--text3)}
+
+@media(max-width:580px){.rep-row{grid-template-columns:38px 38px 1fr 76px;gap:8px;padding:10px 12px}.btrk,.bpct{display:none}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ── Sales drop (top) ───────────────────────────────────────────────── -->
+<div class="cdrop" id="cdrop1" title="Drop Sales data file">
+  <div class="cd-icon" id="cd1-icon">&#128176;</div>
+  <div class="cd-label" id="cd1-label">Drop Sales data</div>
+  <div class="cd-dot"></div>
+</div>
+
+<!-- ── PMT drop (below Sales) ────────────────────────────────────────── -->
+<div class="cdrop" id="cdrop2" title="Drop PMT data file">
+  <div class="cd-icon" id="cd2-icon">&#127775;</div>
+  <div class="cd-label" id="cd2-label">Drop PMT data</div>
+  <div class="cd-dot"></div>
+</div>
+
+<!-- ── Separate file inputs ───────────────────────────────────────────── -->
+<input type="file" id="fi1" accept=".xlsx,.xls,.csv" style="display:none">
+<input type="file" id="fi2" accept=".xlsx,.xls,.csv" style="display:none">
+
+<div id="toast"></div>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="hdr-brand">
+      <div class="hdr-icon" id="hdr-icon">&#128176;</div>
+      <div>
+        <div class="hdr-t" id="hdr-t">Sales Leaderboard</div>
+        <div class="hdr-s" id="hdr-s">Individual rep rankings &mdash; Permaseal Sales</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="mode-toggle">
+        <button class="mt-btn active-sales" id="mt-sales" onclick="setMode('sales')">&#128176; Sales</button>
+        <button class="mt-btn"              id="mt-pmt"   onclick="setMode('pmt')">&#127775; PMT</button>
+      </div>
+      <div>
+        <div class="pbadge" id="pbadge" style="background:var(--gold);color:#000">No data</div>
+        <div class="ptag"   id="ptag">&nbsp;</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="waiting" class="waiting">
+    <div class="wi" id="wi">&#128176;</div>
+    <div class="wt"  id="wt">Fetching latest data&hellip;</div>
+    <div class="ws"  id="ws">Hover the icons in the top-left to load each file separately</div>
+  </div>
+  <div id="main" style="display:none">
+    <div class="kpi-bar">
+      <button class="kb" id="btn-ns" onclick="setKpi('netSales')">&#128176; Net Sales</button>
+      <button class="kb" id="btn-cr" onclick="setKpi('closeRate')">&#127919; Close %</button>
+      <button class="kb" id="btn-al" onclick="setKpi('adl')">&#128200; ADL</button>
+    </div>
+    <div class="team-bar">
+      <button class="tb" id="tf-1" onclick="setTeamFilter(1)">SEAL Team 1</button>
+      <button class="tb" id="tf-2" onclick="setTeamFilter(2)">SEAL Team 2</button>
+      <button class="tb" id="tf-3" onclick="setTeamFilter(3)">SEAL Team 3</button>
+    </div>
+    <div class="sec">Top Performers</div>
+    <div class="pod-wrap" id="pod"></div>
+    <div class="sec" id="all-label">All Rankings</div>
+    <div id="board"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── Roster ────────────────────────────────────────────────────────────────
+const ROSTER={
+  // SEAL Team 1 — Mike Tigges
+  "mike tigges":      {team:"SEAL Team 1",role:"TL"},
+  "stephen petersen": {team:"SEAL Team 1",role:"Rep"},
+  "walter hollister": {team:"SEAL Team 1",role:"Rep"},
+  "david pate":       {team:"SEAL Team 1",role:"Rep"},
+  "brian schweihs":   {team:"SEAL Team 1",role:"Rep"},
+  "don baier":        {team:"SEAL Team 1",role:"Rep"},
+  "jeff sullivan":    {team:"SEAL Team 1",role:"Rep"},
+  // SEAL Team 2 — George Heller
+  "george heller":    {team:"SEAL Team 2",role:"TL"},
+  "paul grossman":    {team:"SEAL Team 2",role:"Rep"},
+  "anthony decker":   {team:"SEAL Team 2",role:"Rep"},
+  "omar pena":        {team:"SEAL Team 2",role:"Rep"},
+  "zachary klein":    {team:"SEAL Team 2",role:"Rep"},
+  "josh larson":      {team:"SEAL Team 2",role:"Rep"},
+  // SEAL Team 3 — Nick Dormitorio
+  "nick dormitorio":  {team:"SEAL Team 3",role:"TL"},
+  "jesse xidis":      {team:"SEAL Team 3",role:"Rep"},
+  "john mcgowen":     {team:"SEAL Team 3",role:"Rep"},
+  "pete garcia":      {team:"SEAL Team 3",role:"Rep"},
+  "michael scardino": {team:"SEAL Team 3",role:"Rep"},
+  "greg kentra":      {team:"SEAL Team 3",role:"Rep"},
+  "gregory kentra":   {team:"SEAL Team 3",role:"Rep"},
+  "michael bobak":    {team:"SEAL Team 3",role:"Rep"},
+};
+const AV_COLORS=[
+  {bg:"#0D3060",border:"#4AA0F0",text:"#4AA0F0"},
+  {bg:"#3A2008",border:"#F5A030",text:"#F5A030"},
+  {bg:"#003828",border:"#00CC96",text:"#00CC96"},
+  {bg:"#1A1040",border:"#9080F0",text:"#9080F0"},
+  {bg:"#2A0A28",border:"#E060C0",text:"#E060C0"},
+  {bg:"#1A2A10",border:"#80C040",text:"#80C040"},
+];
+const MODES={
+  sales:{icon:"&#128176;",title:"Sales Leaderboard",sub:"Individual rep rankings \u2014 Permaseal Sales",badge:{bg:"#F5B500",color:"#000"},bar:"#4AA0F0",kpi:{netSales:"a-ns-s",closeRate:"a-cr-s",adl:"a-al-s"}},
+  pmt:  {icon:"&#127775;",title:"PMT Leaderboard",  sub:"Performance Management Team \u2014 Permaseal Sales",badge:{bg:"#A060F0",color:"#fff"},bar:"#A060F0",kpi:{netSales:"a-ns-p",closeRate:"a-cr-p",adl:"a-al-p"}},
+};
+
+// ── Separate data stores ──────────────────────────────────────────────────
+let gDataSales=null, gDataPmt=null, kpi='netSales', mode='sales', teamFilter=null;
+
+// ── Corner widget helpers ─────────────────────────────────────────────────
+function setCorner(id, state){
+  const el=document.getElementById(id);
+  el.classList.remove('loaded','err','drag');
+  const icon=document.getElementById(id==='cdrop1'?'cd1-icon':'cd2-icon');
+  const label=document.getElementById(id==='cdrop1'?'cd1-label':'cd2-label');
+  if(id==='cdrop1'){
+    icon.innerHTML=state==='loaded'?'&#9989;':state==='err'?'&#10060;':'&#128176;';
+    label.textContent=state==='loaded'?'Sales loaded \u2014 drop to refresh':state==='err'?'Sales error \u2014 retry':'Drop Sales data';
+  }else{
+    icon.innerHTML=state==='loaded'?'&#9989;':state==='err'?'&#10060;':'&#127775;';
+    label.textContent=state==='loaded'?'PMT loaded \u2014 drop to refresh':state==='err'?'PMT error \u2014 retry':'Drop PMT data';
+  }
+  if(state==='loaded'||state==='err')el.classList.add(state);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastT;
+function toast(msg,type='',dur=4000){
+  const el=document.getElementById('toast');
+  el.className='show'+(type?' '+type:'');el.textContent=msg;
+  clearTimeout(toastT);toastT=setTimeout(()=>el.className='',dur);
+}
+
+// ── Wire up drag/drop and click for both widgets ──────────────────────────
+function wireWidget(dropId, inputId, isSales){
+  const drop=document.getElementById(dropId);
+  const inp=document.getElementById(inputId);
+  drop.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',e=>{if(e.target.files[0])processFile(e.target.files[0],isSales)});
+  drop.addEventListener('dragenter',e=>{e.preventDefault();drop.classList.add('drag')});
+  drop.addEventListener('dragover', e=>{e.preventDefault();drop.classList.add('drag')});
+  drop.addEventListener('dragleave',e=>{if(!drop.contains(e.relatedTarget))drop.classList.remove('drag')});
+  drop.addEventListener('drop',e=>{
+    e.preventDefault();drop.classList.remove('drag');
+    const f=e.dataTransfer.files[0];if(f)processFile(f,isSales);
+  });
+}
+wireWidget('cdrop1','fi1',true);   // Sales widget
+wireWidget('cdrop2','fi2',false);  // PMT widget
+
+// Allow drop anywhere on page — route to whichever is active mode
+document.body.addEventListener('dragover',e=>e.preventDefault());
+document.body.addEventListener('drop',e=>{
+  e.preventDefault();
+  const f=e.dataTransfer.files[0];
+  if(f)processFile(f,mode==='sales');
+});
+
+// ── Boot: auto-fetch Sales from repo ─────────────────────────────────────
+const AUTO=['leaderboard_data_template.xlsx','data.xlsx','data.csv'];
+async function boot(){
+  for(let i=0;i<20;i++){if(window.XLSX)break;await new Promise(r=>setTimeout(r,150))}
+  if(!window.XLSX){showWaiting('SheetJS failed — reload the page.',true);return}
+  for(const f of AUTO){
+    try{
+      const r=await fetch('./'+f+'?t='+Date.now());
+      if(!r.ok)continue;
+      const buf=await r.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(rows.length){parseAndStore(rows,f,true,true);return}
+    }catch(e){continue}
+  }
+  showWaiting(null,false);
+}
+
+function showWaiting(msg,isErr){
+  document.getElementById('waiting').style.display='block';
+  document.getElementById('main').style.display='none';
+  const cfg=MODES[mode];
+  document.getElementById('wi').innerHTML=cfg.icon;
+  document.getElementById('wt').textContent=isErr?'Could not load data':'Waiting for data';
+  document.getElementById('ws').textContent=msg||
+    'Hover \u2600\uFE0F \u2460 (Sales) or \u2729 \u2461 (PMT) in the top-left to drop each file separately';
+}
+
+// ── File processor ────────────────────────────────────────────────────────
+function processFile(file,isS){
+  const label=isS?'Sales':'PMT';
+  toast('Reading '+file.name+' as '+label+' data\u2026','',9999);
+  if(!window.XLSX){toast('SheetJS not loaded.','err');return}
+  const reader=new FileReader();
+  reader.onerror=()=>{toast('Could not read file.','err');setCorner(isS?'cdrop1':'cdrop2','err')};
+  reader.onload=e=>{
+    try{
+      const ext=file.name.split('.').pop().toLowerCase();
+      const wb=XLSX.read(e.target.result,{type:ext==='csv'?'binary':'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){toast('File appears empty.','err');setCorner(isS?'cdrop1':'cdrop2','err');return}
+      parseAndStore(rows,file.name,false,isS);
+    }catch(err){toast('Parse error: '+err.message,'err');setCorner(isS?'cdrop1':'cdrop2','err')}
+  };
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv')reader.readAsBinaryString(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+// ── Parse rows → store in the right slot ─────────────────────────────────
+function parseAndStore(rows,fname,fromRepo,isS){
+  const headers=Object.keys(rows[0]);
+  const nameCol=headers[0];
+  const n=k=>String(k).toLowerCase().replace(/[^a-z0-9]/g,'');
+  const closeCol=headers.find(h=>n(h).includes('close'))||headers[1];
+  const nsCol   =headers.find(h=>n(h).includes('net')||n(h)==='netsales')||headers[2];
+  const adlCol  =headers.find(h=>n(h)==='adl')||headers[3];
+
+  const people=[];
+  rows.forEach((row,idx)=>{
+    const name=String(row[nameCol]||'').trim();
+    if(!name)return;
+    let cr=parseFloat(row[closeCol]);
+    if(isNaN(cr))cr=null; else if(cr>1.5)cr=cr/100;
+    const entry=ROSTER[name.toLowerCase()]||{team:null,role:'Rep'};
+    people.push({name,closeRate:cr,netSales:numOrNull(row[nsCol]),adl:numOrNull(row[adlCol]),team:entry.team,role:entry.role,colorIdx:idx%AV_COLORS.length});
+  });
+
+  if(!people.length){
+    toast('No rows matched in file.','err',6000);
+    setCorner(isS?'cdrop1':'cdrop2','err');
+    return;
+  }
+
+  const ds={people,loaded:new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const label=isS?'Sales':'PMT';
+
+  if(isS)gDataSales=ds; else gDataPmt=ds;
+  setCorner(isS?'cdrop1':'cdrop2','loaded');
+  toast((fromRepo?'Auto-loaded':'Loaded')+' '+label+' \u2014 '+people.length+' records','ok');
+
+  // If the loaded data matches the current mode, render it immediately
+  if((isS&&mode==='sales')||(!isS&&mode==='pmt')) renderCurrent();
+
+  // Auto-switch to the mode that just loaded data if the current mode is empty
+  if(isS&&!gDataSales&&mode==='pmt') {}   // stay on pmt
+  if(!isS&&mode==='pmt') setMode('pmt');  // switch to pmt if pmt data arrives
+  if(isS&&mode==='sales') setMode('sales'); // refresh sales view
+}
+
+function numOrNull(v){
+  if(v===null||v===undefined||v==='')return null;
+  const x=parseFloat(String(v).replace(/[$,\s]/g,''));
+  return isNaN(x)?null:x;
+}
+
+// ── Mode switch ───────────────────────────────────────────────────────────
+function setMode(m){
+  mode=m;
+  const cfg=MODES[m];
+  document.getElementById('hdr-icon').innerHTML=cfg.icon;
+  document.getElementById('hdr-t').textContent=cfg.title;
+  document.getElementById('hdr-s').innerHTML=cfg.sub;
+  document.getElementById('wi').innerHTML=cfg.icon;
+  document.getElementById('pbadge').style.background=cfg.badge.bg;
+  document.getElementById('pbadge').style.color=cfg.badge.color;
+  document.getElementById('mt-sales').className='mt-btn'+(m==='sales'?' active-sales':'');
+  document.getElementById('mt-pmt').className  ='mt-btn'+(m==='pmt'  ?' active-pmt':'');
+  renderCurrent();
+}
+
+function renderCurrent(){
+  const ds=mode==='sales'?gDataSales:gDataPmt;
+  if(!ds){
+    showWaiting(null,false);
+    document.getElementById('pbadge').textContent='No data';
+    document.getElementById('ptag').textContent=
+      mode==='sales'?'Drop Sales file using \u2460 (top-left)':'Drop PMT file using \u2461 (top-left)';
+    return;
+  }
+  document.getElementById('waiting').style.display='none';
+  document.getElementById('main').style.display='block';
+  document.getElementById('pbadge').textContent='Live';
+  document.getElementById('ptag').textContent='Updated '+ds.loaded;
+  setKpi(kpi);
+}
+
+// ── KPI ───────────────────────────────────────────────────────────────────
+function setKpi(k){
+  kpi=k;
+  const m=MODES[mode].kpi;
+  document.getElementById('btn-ns').className='kb'+(k==='netSales'  ?' '+m.netSales :'');
+  document.getElementById('btn-cr').className='kb'+(k==='closeRate' ?' '+m.closeRate:'');
+  document.getElementById('btn-al').className='kb'+(k==='adl'       ?' '+m.adl      :'');
+  render();
+}
+
+function setTeamFilter(t){
+  // Toggle: clicking active team deselects it; clicking another switches
+  teamFilter = (teamFilter===t) ? null : t;
+  [1,2,3].forEach(n=>{
+    const btn=document.getElementById('tf-'+n);
+    if(btn) btn.className='tb'+(teamFilter===n?' tf-'+n+'-on':'');
+  });
+  render();
+}
+
+function getV(p){return kpi==='netSales'?p.netSales:kpi==='closeRate'?p.closeRate:p.adl}
+function fmt(v,compact){
+  if(v===null||v===undefined)return'\u2014';
+  if(kpi==='closeRate')return(v*100).toFixed(1)+'%';
+  const abs=Math.abs(v),neg=v<0;
+  if(compact&&abs>=1000)return(neg?'-$':'$')+(abs/1000).toFixed(1)+'k';
+  return(neg?'-$':'$')+abs.toLocaleString('en-US',{maximumFractionDigits:0});
+}
+function ini(n){return n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render(){
+  const ds=mode==='sales'?gDataSales:gDataPmt;
+  if(!ds)return;
+
+  // Apply team filter if one is selected
+  const TEAM_NAMES={1:'SEAL Team 1',2:'SEAL Team 2',3:'SEAL Team 3'};
+  const people = teamFilter!==null
+    ? ds.people.filter(p=>p.team===TEAM_NAMES[teamFilter])
+    : ds.people;
+
+  // Separate TLs from reps — TLs display for reference but are excluded from all calculations
+  const tls   = people.filter(p=>p.role==='TL');
+  const reps   = people.filter(p=>p.role!=='TL');
+
+  const sorted=[...reps].sort((a,b)=>{
+    const av=getV(a),bv=getV(b);
+    if(av===null&&bv===null)return 0;
+    if(av===null)return 1;if(bv===null)return -1;
+    return bv-av;
+  });
+  const maxVal=Math.max(...reps.map(p=>getV(p)??0).filter(v=>v>0),1);
+  const kl=kpi==='netSales'?'Net Sales':kpi==='closeRate'?'Close %':'ADL';
+  const filterLabel = teamFilter!==null ? TEAM_NAMES[teamFilter]+' — ' : 'All ';
+  document.getElementById('all-label').textContent=filterLabel+sorted.length+' Rep Rankings';
+  renderPod(sorted.filter(p=>getV(p)!==null).slice(0,3));
+  renderBoard(sorted,maxVal,kl,tls);
+}
+
+function renderPod(top3){
+  const slots=[top3[1],top3[0],top3[2]],pc=['p2','p1','p3'],ri=[1,0,2],hts=[82,128,54];
+  document.getElementById('pod').innerHTML=slots.map((p,si)=>{
+    if(!p)return'';
+    const val=getV(p),ac=AV_COLORS[p.colorIdx];
+    return`<div class="pod-col ${pc[si]}">
+      <div class="pod-info">
+        ${ri[si]===0?'<div class="pod-crown">&#128081;</div>':''}
+        <div class="pod-av" style="background:${ac.bg};border-color:${ac.border};color:${ac.text}">${ini(p.name)}</div>
+        <div class="pod-nm">${p.name}${ri[si]===0?' &#128293;':''}${p.role==='TL'?'<span class="tl-badge">TL</span>':''}</div>
+        <div class="pod-role" style="color:${ac.text}">${p.team||''}</div>
+        <div class="pod-val">${fmt(val)}</div>
+      </div>
+      <div class="pod-blk" style="height:${hts[si]}px"><span>${ri[si]+1}</span></div>
+      <div class="pod-base"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderBoard(sorted,maxVal,kl,tls=[]){
+  function colorFor(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))&0xFFFF;return AV_COLORS[h%AV_COLORS.length]}
+  const RC=['g','s','b'],medals=['&#127941;','&#129352;','&#129353;'];
+  const barColor=MODES[mode].bar;
+
+  // TL reference rows (shown above ranked list, excluded from all calculations)
+  const tlHtml=tls.map(tl=>{
+    const val=getV(tl),ac=colorFor(tl.name);
+    const neg=val!==null&&val<0,vc=val===null?'vnull':neg?'vneg':'';
+    const pct=val!==null&&val>0?Math.min(100,(val/maxVal)*100):0;
+    return`<div class="tl-hdr-row">
+      <span class="tl-hdr-label">Team Lead</span>
+      <div class="av" style="background:${ac.bg};border-color:var(--gold);color:var(--gold);border-width:1.5px">${ini(tl.name)}</div>
+      <div>
+        <div class="rep-nm">${tl.name}<span class="tl-badge">TL</span></div>
+        <div class="rep-sub">${tl.team||''}</div>
+      </div>
+      <div class="kv">
+        <div class="kvn ${vc}" style="color:var(--text2)">${fmt(val,true)}</div>
+        <div class="kvl" style="color:var(--text3)">Not ranked</div>
+      </div>
+      <div>
+        <div class="btrk"><div class="bfil" style="width:${pct}%;background:rgba(245,181,0,.35)"></div></div>
+        <div class="bpct" style="color:var(--text3)">${Math.round(pct)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Stat banner ─────────────────────────────────────────────────────────
+  // Net Sales: total of ALL (tls + reps) | Close % & ADL: reps-only average
+  const allForNS=[...tls,...sorted];
+  const nsTotal=allForNS.reduce((s,p)=>s+(p.netSales!==null?p.netSales:0),0);
+  const crVals=sorted.map(p=>p.closeRate).filter(v=>v!==null);
+  const crAvg=crVals.length?crVals.reduce((a,b)=>a+b,0)/crVals.length:null;
+  const adlVals=sorted.map(p=>p.adl).filter(v=>v!==null);
+  const adlAvg=adlVals.length?adlVals.reduce((a,b)=>a+b,0)/adlVals.length:null;
+
+  function fmtStat(v,isCr){
+    if(v===null||v===undefined)return'\u2014';
+    if(isCr)return(v*100).toFixed(1)+'%';
+    const abs=Math.abs(v),neg=v<0;
+    return(neg?'-$':'$')+abs.toLocaleString('en-US',{maximumFractionDigits:0});
+  }
+
+  const STAT_CFG={
+    netSales:{lbl:'Team Total Net Sales', note:'Includes team lead',              val:fmtStat(nsTotal,false), cls:'ns-col', icon:'&#128176;'},
+    closeRate:{lbl:'Team Avg Close %',    note:'Reps only \u2014 team lead excluded', val:fmtStat(crAvg,true),   cls:'cr-col', icon:'&#127919;'},
+    adl:      {lbl:'Team Avg ADL',        note:'Reps only \u2014 team lead excluded', val:fmtStat(adlAvg,false), cls:'al-col', icon:'&#128200;'},
+  };
+  const sc=STAT_CFG[kpi];
+  const statHtml=`<div class="stat-banner">
+    <div class="stat-lhs">
+      <div class="stat-icon">${sc.icon}</div>
+      <div>
+        <div class="stat-lbl">${sc.lbl}</div>
+        <div class="stat-note">${sc.note}</div>
+      </div>
+    </div>
+    <div class="stat-val ${sc.cls}">${sc.val}</div>
+  </div>`;
+
+  const sepHtml=`<div class="tl-hdr-sep">Rep Rankings</div>`;
+
+  const repHtml=sorted.map((p,ri)=>{
+    const val=getV(p),pct=val!==null&&val>0?Math.min(100,(val/maxVal)*100):0;
+    const neg=val!==null&&val<0,vc=val===null?'vnull':neg?'vneg':'';
+    const ac=colorFor(p.name),dl=(Math.min(ri,12)*.04).toFixed(2)+'s';
+    const vc2=ri===0?'var(--gold)':ri===1?'var(--silver)':ri===2?'var(--bronze)':neg?'var(--neg)':'var(--text)';
+    return`<div class="rep-row${ri===0?' top1':''}" style="animation-delay:${dl}">
+      <div class="rk ${ri<3?RC[ri]:'n'}">${ri<3?medals[ri]:ri+1}</div>
+      <div class="av" style="background:${ac.bg};border-color:${ac.border};color:${ac.text}">${ini(p.name)}</div>
+      <div>
+        <div class="rep-nm">${p.name}</div>
+        <div class="rep-sub">${p.team||''}</div>
+      </div>
+      <div class="kv">
+        <div class="kvn ${vc}" style="color:${vc2}">${fmt(val,true)}</div>
+        <div class="kvl">${kl}</div>
+      </div>
+      <div>
+        <div class="btrk"><div class="bfil" style="width:${pct}%;background:${neg?'#FF6060':barColor}"></div></div>
+        <div class="bpct">${Math.round(pct)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('board').innerHTML = tlHtml + statHtml + sepHtml + repHtml;
+}
+
+boot();
+</script>
+</body>
+</html>
